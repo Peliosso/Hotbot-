@@ -4,7 +4,7 @@
 // CONFIGURAÇÕES DO BOT
 // =====================
 
-define("BOT_TOKEN", "COLOQUE_SEU_TOKEN_AQUI");
+define("BOT_TOKEN", "8145316023:AAHiduE7wkT12E6OlnX1etHgYpbi_YPbxSw");
 define("API_URL", "https://api.telegram.org/bot" . BOT_TOKEN);
 
 // Produto / pagamento
