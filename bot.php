@@ -2,7 +2,7 @@
 
 /* ================= CONFIG ================= */
 
-$TOKEN = "COLOQUE_SEU_TOKEN_NOVO_AQUI";
+$TOKEN = "8362517082:AAHh0b9FSfXlJL0ofprStTZXTKcjKZpy30A";
 $API = "https://api.telegram.org/bot$TOKEN";
 
 $ADMIN_ID = 7926471341;
