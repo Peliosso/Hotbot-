@@ -1,35 +1,228 @@
 <?php
 
-// =====================
-// CONFIGURAÇÕES DO BOT
-// =====================
+/* ===================== CONFIG ===================== */
 
-define("BOT_TOKEN", "8145316023:AAHiduE7wkT12E6OlnX1etHgYpbi_YPbxSw");
-define("API_URL", "https://api.telegram.org/bot" . BOT_TOKEN);
+$TOKEN = "8362517082:AAHh0b9FSfXlJL0ofprStTZXTKcjKZpy30A";
+$API = "https://api.telegram.org/bot$TOKEN";
 
-// Produto / pagamento
-define("PAYMENT_LINK", "LINK_DO_PRODUTO");
-define("MONTHLY_PRICE", 18.90);
+$ADMIN_ID = 7926471341;
+$DONO = "@silenciante";
+$LINK_PRODUTOS = "https://jokervip.rf.gd/";
+$CHAT_GRUPO = "-1003052688657";
 
-// Grupo
-define("GROUP_INVITE_LINK", "https://t.me/cybersecchanel");
+$STORAGE = "storage.json";
+$MAX_WARNS = 3;
 
-// Suporte
-define("SUPPORT_USERNAME", "@cybersecofc");
+/* ===================== FUNÇÕES ===================== */
 
-// Mensagens
-define("WELCOME_MESSAGE", "💣🔥 SEJA BEM-VINDO AO BOT XXXPRIVE +18 🔥💣\n\nVou te mandar umas fotos aí 😉");
+function bot($method, $data = [], $multipart = false) {
+    global $API;
+    $ch = curl_init($API . "/" . $method);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $multipart ? $data : http_build_query($data));
+    return json_decode(curl_exec($ch), true);
+}
 
-define("PAYMENT_MESSAGE", "🔥 Para ter acesso completo 🔥\n\n💰 Valor mensal: R$ " . number_format(MONTHLY_PRICE, 2, ',', '.'));
+function loadData($file) {
+    return file_exists($file) ? json_decode(file_get_contents($file), true) : [];
+}
 
-// Fotos
-$WELCOME_PHOTOS = [
-    "https://www.nudelas.com/posts/angulo-perfeito/119/angulo-perfeito-1.jpg",
-    "https://www.nudelas.com/posts/angulo-perfeito/119/angulo-perfeito-33.jpg",
-    "https://www.pornolandia.xxx/media/photos/249151.jpg"
-];
+function saveData($file, $data) {
+    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+}
 
-$ADDITIONAL_PHOTOS = [
-    "https://mulheresperdidas.com/wp-content/uploads/2022/02/galega-gostosa-bunduda-com-a-buceta-carnuda-1989.jpg",
-    "https://www.vagabundasdoorkut.net/wp-content/uploads/2022/03/Fotografando-a-esposa-gostosa-pelada-3.jpg"
-];
+/* ===================== UPDATE ===================== */
+
+$update = json_decode(file_get_contents("php://input"), true);
+if (!$update) exit;
+
+/* ===================== START ===================== */
+
+if (isset($update["message"]["text"]) && $update["message"]["text"] === "/start") {
+    bot("sendMessage", [
+        "chat_id" => $update["message"]["chat"]["id"],
+        "text" => "👋 Bem-vindo!\n\nConfira nosso catálogo abaixo.",
+        "reply_markup" => json_encode([
+            "inline_keyboard" => [
+                [["text" => "🛒 Produtos", "url" => $LINK_PRODUTOS]]
+            ]
+        ])
+    ]);
+}
+
+/* ===================== WELCOME ON/OFF ===================== */
+
+if (isset($update["message"]["text"])) {
+
+    $text = $update["message"]["text"];
+    $chat_id = $update["message"]["chat"]["id"];
+    $from_id = $update["message"]["from"]["id"];
+
+    if ($from_id == $ADMIN_ID && preg_match('/^\/welcome (on|off)$/', $text, $m)) {
+
+        $data = loadData($STORAGE);
+        $data["welcome"] = $m[1];
+        saveData($STORAGE, $data);
+
+        bot("sendMessage", [
+            "chat_id" => $chat_id,
+            "text" => "👋 Welcome *" . strtoupper($m[1]) . "*",
+            "parse_mode" => "Markdown"
+        ]);
+    }
+}
+
+/* ===================== BOAS-VINDAS ===================== */
+
+if (isset($update["message"]["new_chat_members"])) {
+
+    $data = loadData($STORAGE);
+    if (($data["welcome"] ?? "on") !== "on") return;
+
+    $chat_id = $update["message"]["chat"]["id"];
+
+    foreach ($update["message"]["new_chat_members"] as $membro) {
+
+        $nome = $membro["first_name"] ?? "novo membro";
+
+        bot("sendMessage", [
+            "chat_id" => $chat_id,
+            "text" =>
+                "👋 *Bem-vindo(a), $nome!*\n\n".
+                "Aqui você pode consultar **nomes, CPFs e telefones** gratuitamente.\n\n".
+                "Dúvidas: $DONO",
+            "parse_mode" => "Markdown"
+        ]);
+    }
+}
+
+/* ===================== BAN / UNBAN ===================== */
+
+if (isset($update["message"]["text"])) {
+
+    $text = $update["message"]["text"];
+    $chat_id = $update["message"]["chat"]["id"];
+    $from_id = $update["message"]["from"]["id"];
+    $reply = $update["message"]["reply_to_message"]["from"]["id"] ?? null;
+    $nome = $update["message"]["reply_to_message"]["from"]["first_name"] ?? "usuário";
+
+    if ($from_id != $ADMIN_ID || !$reply) return;
+
+    if ($text === "/ban") {
+        bot("banChatMember", [
+            "chat_id" => $chat_id,
+            "user_id" => $reply
+        ]);
+
+        bot("sendMessage", [
+            "chat_id" => $chat_id,
+            "text" => "🚫 *$nome foi banido com sucesso.*",
+            "parse_mode" => "Markdown"
+        ]);
+    }
+
+    if ($text === "/unban") {
+        bot("unbanChatMember", [
+            "chat_id" => $chat_id,
+            "user_id" => $reply
+        ]);
+
+        bot("sendMessage", [
+            "chat_id" => $chat_id,
+            "text" => "♻️ *$nome foi desbanido.*",
+            "parse_mode" => "Markdown"
+        ]);
+    }
+}
+
+/* ===================== WARNS ===================== */
+
+if (isset($update["message"]["text"])) {
+
+    $text = $update["message"]["text"];
+    $chat_id = $update["message"]["chat"]["id"];
+    $from_id = $update["message"]["from"]["id"];
+    $reply = $update["message"]["reply_to_message"]["from"]["id"] ?? null;
+    $nome = $update["message"]["reply_to_message"]["from"]["first_name"] ?? "usuário";
+
+    if ($from_id != $ADMIN_ID || !$reply) return;
+
+    $data = loadData($STORAGE);
+    $data["warns"][$reply] = $data["warns"][$reply] ?? 0;
+
+    if ($text === "/warn") {
+
+        $data["warns"][$reply]++;
+        saveData($STORAGE, $data);
+
+        if ($data["warns"][$reply] >= $MAX_WARNS) {
+
+            bot("banChatMember", [
+                "chat_id" => $chat_id,
+                "user_id" => $reply
+            ]);
+
+            bot("sendMessage", [
+                "chat_id" => $chat_id,
+                "text" => "🚫 *$nome foi banido (limite de warns).*",
+                "parse_mode" => "Markdown"
+            ]);
+
+        } else {
+
+            bot("sendMessage", [
+                "chat_id" => $chat_id,
+                "text" =>
+                    "⚠️ *$nome recebeu um warn*\n".
+                    "({$data["warns"][$reply]}/$MAX_WARNS)",
+                "parse_mode" => "Markdown"
+            ]);
+        }
+    }
+
+    if ($text === "/warns") {
+        bot("sendMessage", [
+            "chat_id" => $chat_id,
+            "text" => "📊 *$nome tem {$data["warns"][$reply]}/$MAX_WARNS warns.*",
+            "parse_mode" => "Markdown"
+        ]);
+    }
+}
+
+/* ===================== MENU ===================== */
+
+if (isset($update["message"]["text"]) && $update["message"]["text"] === "/menu") {
+
+    bot("sendMessage", [
+        "chat_id" => $update["message"]["chat"]["id"],
+        "text" => "📌 *Menu Administrativo*",
+        "parse_mode" => "Markdown",
+        "reply_markup" => json_encode([
+            "inline_keyboard" => [
+                [["text" => "🚫 Ban", "callback_data" => "info_ban"]],
+                [["text" => "⚠️ Warn", "callback_data" => "info_warn"]],
+                [["text" => "👋 Welcome", "callback_data" => "info_welcome"]]
+            ]
+        ])
+    ]);
+}
+
+/* ===================== CALLBACKS ===================== */
+
+if (isset($update["callback_query"])) {
+
+    $id = $update["callback_query"]["id"];
+    $data = $update["callback_query"]["data"];
+
+    $respostas = [
+        "info_ban" => "Use /ban respondendo a mensagem.",
+        "info_warn" => "Use /warn respondendo a mensagem.",
+        "info_welcome" => "Use /welcome on ou /welcome off."
+    ];
+
+    bot("answerCallbackQuery", [
+        "callback_query_id" => $id,
+        "text" => $respostas[$data] ?? "Comando inválido",
+        "show_alert" => true
+    ]);
+}
